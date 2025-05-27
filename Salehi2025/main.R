@@ -24,9 +24,11 @@ source("HierarchicalModelShannon.R")
 source("FrequentistCompareARG.R")
 source("FrequentistCompareShannon.R")
 
-# Enrichment models (slow, only needs to be done once)
+# Enrichment models (very slow, only needs to be done once)
 source("EnrichmentModels.R")
+
+# Comparison between rtsan and cmdstanr (very slow, only needs to be done once)
+source("Stancompare.R")
 
 # Render the full Quarto report
 quarto::quarto_render("report.qmd")
-

@@ -24,7 +24,9 @@ All required preprocessing and model fitting steps are executed via a wrapper sc
 
 -   `FrequentistCompareARG.R` and `FrequentistCompareShannon.R` – simulation-based comparison of Bayesian and frequentist models (computationally intensive)
 
--   `EnrichmentModels.R` – runs enrichment models using Bayesian regression to estimate high ARG prevalence across groups (computationally intensive)
+-   `EnrichmentModels.R` – runs enrichment models using Bayesian regression to estimate high ARG prevalence across groups (computationally very intensive)
+
+- `Stancompare.R` – comparison between rtsan and cmdstanr (computationally very intensive)
 
 Before rendering this report, ensure that all these scripts are available in your working directory. To render this report and run all required scripts, make sure to execute script `main.R`.
 
@@ -52,6 +54,7 @@ library(loo)
 library(cmdstanr)
 library(broom)
 library(tibble)
+library(tictoc)
 ```
 
 # Data processing
@@ -1031,7 +1034,9 @@ The first analysis focuses on ARG load as the response variable, modeled using a
 ```{r}
 # Plot the distribution of 95% interval widths by model and sample size (ARG model)
 # Separate panels are shown for each age category
-results_ARG$Predictor[results_ARG$Predictor == "MiddleMAgedAdult"] <- "Middle-Aged Adult"
+desired_order <- c("Infant", "Toddler", "Children", "Teenager", 
+                   "Young Adult", "Older Adult", "Oldest Adult")
+results_ARG$Predictor <- factor(results_ARG$Predictor, levels = desired_order)
 ggplot(results_ARG, aes(x = factor(sample_size), y = width, fill = model)) +
   geom_boxplot(position = position_dodge(0.8), alpha = 0.85, linewidth = 0.6) +
   facet_wrap(~Predictor, scales = "free_y", ncol = 3) +
@@ -1071,7 +1076,7 @@ The second analysis focuses on the Shannon diversity as the response variable, m
 ```{r}
 # Plot the distribution of 95% interval widths by model and sample size (Shannon model) 
 # Separate panels are shown for each age category
-results_shannon$Predictor[results_shannon$Predictor == "MiddleMAgedAdult"] <- "Middle-Aged Adult"
+results_shannon$Predictor <- factor(results_shannon$Predictor, levels = desired_order)
 ggplot(results_shannon, aes(x = factor(sample_size), y = width, fill = model)) +
   geom_boxplot(position = position_dodge(0.8), alpha = 0.85, linewidth = 0.6) +
   facet_wrap(~Predictor, scales = "free_y", ncol = 3) +
@@ -1422,12 +1427,6 @@ newdata <- enrichment_df %>%
   distinct(age_category, income_group) %>%
   arrange(income_group, age_category)
 
-# Make sure factors match model levels
-newdata$income_group <- factor(newdata$income_group, 
-                               levels = levels(fit_enrichment_age_hier[["all"]]$data$income_group))
-newdata$age_category <- factor(newdata$age_category, 
-                               levels = levels(fit_enrichment_age_hier[["all"]]$data$age_category))
-
 # Posterior expected prevalence
 posterior_preds <- posterior_epred(fit_enrichment_age_hier[["all"]], newdata = newdata)
 
@@ -1514,13 +1513,6 @@ newdata <- enrichment_df %>%
   distinct(gender, income_group) %>%
   arrange(income_group, gender)
 
-# Make sure factors match model levels
-newdata$income_group <- factor(newdata$income_group, 
-                               levels = levels(fit_enrichment_gender_hier[["all"]]$data$income_group))
-newdata$gender <- factor(newdata$gender, 
-                         levels = 
-levels(fit_enrichment_gender_hier[["all"]]$data$gender))
-
 # Posterior expected prevalence
 posterior_preds <- posterior_epred(fit_enrichment_gender_hier[["all"]], newdata = newdata)
 
@@ -1606,14 +1598,6 @@ newdata <- enrichment_df %>%
   distinct(age_category, income_group, gender) %>%
   arrange(income_group, gender, age_category)
 
-# Make sure factors match model levels
-newdata$income_group <- factor(newdata$income_group, 
-                               levels = levels(fit_enrichment_age_gender_hier[["all"]]$data$income_group))
-newdata$gender <- factor(newdata$gender, 
-                         levels = levels(fit_enrichment_age_gender_hier[["all"]]$data$gender))
-newdata$age_category <- factor(newdata$age_category, 
-                               levels = levels(fit_enrichment_age_gender_hier[["all"]]$data$age_category))
-
 # Posterior expected prevalence
 posterior_preds <- posterior_epred(fit_enrichment_age_gender_hier[["all"]], newdata = newdata)
 
@@ -1694,11 +1678,12 @@ newdata <- enrichment_df %>%
   distinct(age_category, continent) %>%
   arrange(continent, age_category)
 
-# Make sure factors match model levels
-newdata$continent <- factor(newdata$continent, 
-                            levels = levels(fit_enrichment_age_continent_hier[["all"]]$data$continent))
-newdata$age_category <- factor(newdata$age_category, 
-                               levels = levels(fit_enrichment_age_continent_hier[["all"]]$data$age_category))
+# Filter out unknown continent levels to match model
+valid_continents <- levels(fit_enrichment_age_continent_hier[["all"]]$data$continent)
+newdata <- newdata %>%
+  filter(continent %in% valid_continents)
+newdata$continent <- factor(newdata$continent, levels = valid_continents)
+
 
 # Posterior expected prevalence
 posterior_preds <- posterior_epred(fit_enrichment_age_continent_hier[["all"]], newdata = newdata)
@@ -1778,18 +1763,17 @@ newdata <- enrichment_df %>%
   distinct(age_category, income_group, gender, continent) %>%
   arrange(continent, income_group, gender, age_category)
 
-# Make sure factors match model levels
-newdata$continent <- factor(newdata$continent, 
-                            levels = levels(fit_enrichment_income_age_gender_continent_hier[["all"]]$data$continent))
-newdata$income_group <- factor(newdata$income_group, 
-                               levels = levels(fit_enrichment_income_age_gender_continent_hier[["all"]]$data$income_group))
-newdata$gender <- factor(newdata$gender, 
-                         levels = levels(fit_enrichment_income_age_gender_continent_hier[["all"]]$data$gender))
-newdata$age_category <- factor(newdata$age_category, 
-                               levels = levels(fit_enrichment_income_age_gender_continent_hier[["all"]]$data$age_category))
+# Filter out unknown continent levels to match model
+valid_continents <- levels(fit_enrichment_income_age_gender_continent_hier[["all"]]$data$continent)
+newdata <- newdata %>%
+  filter(continent %in% valid_continents)
+newdata$continent <- factor(newdata$continent, levels = valid_continents)
 
 # Posterior expected prevalence
-posterior_preds <- posterior_epred(fit_enrichment_income_age_gender_continent_hier[["all"]], newdata = newdata)
+posterior_preds <- posterior_epred(
+  fit_enrichment_income_age_gender_continent_hier[["all"]],
+  newdata = newdata
+)
 
 # Summarize posterior predictions
 summary_df <- as.data.frame(t(apply(posterior_preds, 2, function(x) {
@@ -1871,15 +1855,11 @@ newdata <- enrichment_df %>%
   distinct(age_category, income_group, gender, continent) %>%
   arrange(continent, income_group, gender, age_category)
 
-# Ensure factors match model levels
-newdata$continent <- factor(newdata$continent, 
-                            levels = levels(fit_enrichment_all_hier[["all"]]$data$continent))
-newdata$income_group <- factor(newdata$income_group, 
-                               levels = levels(fit_enrichment_all_hier[["all"]]$data$income_group))
-newdata$gender <- factor(newdata$gender, 
-                         levels = levels(fit_enrichment_all_hier[["all"]]$data$gender))
-newdata$age_category <- factor(newdata$age_category, 
-                               levels = levels(fit_enrichment_all_hier[["all"]]$data$age_category))
+# Filter out unknown continent levels to match model
+valid_continents <- levels(fit_enrichment_all_hier[["all"]]$data$continent)
+newdata <- newdata %>%
+  filter(continent %in% valid_continents)
+newdata$continent <- factor(newdata$continent, levels = valid_continents)
 
 # Posterior expected prevalence
 posterior_preds <- posterior_epred(fit_enrichment_all_hier[["all"]], newdata = newdata)
@@ -1923,3 +1903,43 @@ ggplot(summary_df, aes(x = age_category, y = Estimate * 100, color = gender, gro
 ```
 
 The random slope model reveals variation in age trends across gender, income group, and continent. While credible intervals remain wide, especially in LMICs and some continents, overall patterns do not show pronounced gender differences.
+
+
+
+# Comparing rstan and cmdstanr
+
+To assess the computational performance of different Stan backends, we compared model fitting times using both rstan and cmdstanr. Two statistical models were tested: Model 4, which includes a random intercept for bioproject and accounts for sequencing depth, and a hierarchical enrichment model, which estimates the prevalence of high ARG load across gender groups with varying effects across income groups. Both models were previously fitted using rstan earlier in the analysis. Each model was fitted five times with both backends to obtain reliable timing estimates.
+
+This benchmarking was conducted in a separate R script (`StanCompare.R`). Please ensure that this script is available in your working directory. The results have been saved as `.rds` file and are loaded here to enable downstream analysis.
+
+```{r, include=FALSE}
+# Load results
+stan_timings <- readRDS("stan_timing_results.rds")
+```
+
+
+To summarize backend performance, we calculated the average model fitting time for each Stan backend across three repetitions. After that we visualize the results.
+
+```{r}
+# Compute mean timing per model and backend
+avg_timings <- stan_timings %>%
+  group_by(model, backend) %>%
+  summarise(mean_time_sec = mean(time_sec), .groups = "drop")
+
+# Print summary table
+print(avg_timings)
+
+# Plot: mean runtime by model and backend
+ggplot(avg_timings, aes(x = model, y = mean_time_sec, fill = backend)) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.6) +
+  labs(
+    title = "Mean model fitting time by Stan backend",
+    x = "Model",
+    y = "Mean time (seconds)",
+    fill = "Backend"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+
+Cmdstanr consistently outperformed rstan in terms of model fitting time. The performance gap was especially notable for the hierarchical enrichment model, where cmdstanr completed inference in nearly half the time required by rstan.

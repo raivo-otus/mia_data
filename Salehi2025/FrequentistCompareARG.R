@@ -60,13 +60,19 @@ simulate_once <- function(data, sample_size) {
 sample_sizes <- c(30, 80, 150, 250, 500)
 n_reps <- 5
 
-# Loop over all sample sizes and repetitions with progress messages
+# Run simulations with enforced minimum per age category
 results_ARG <- expand.grid(sample_size = sample_sizes, rep = 1:n_reps) %>%
   pmap_dfr(function(sample_size, rep) {
     message(glue::glue("Running: sample_size = {sample_size}, repetition = {rep}"))
-    simulate_once(adult_metadata, sample_size = sample_size) %>%
+    
+    # Sample 3 per age_category, then fill the rest randomly
+    base <- adult_df %>% group_by(age_category) %>% slice_sample(n = 3) %>% ungroup()
+    rest <- adult_df %>% filter(!acc %in% base$acc) %>% slice_sample(n = sample_size - nrow(base))
+    sample <- bind_rows(base, rest)
+    
+    simulate_once(sample, sample_size = sample_size) %>%
       mutate(rep = rep)
   })
 
-# Save results
+# Save output
 saveRDS(results_ARG, "results_compare_ARG.rds")

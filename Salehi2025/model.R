@@ -240,7 +240,7 @@ for(ic in incomes) {  # Loop over income levels for ARG_load
     ),
     chains = 2,
     iter = 5000,
-    control = list(adapt_delta = 0.99, max_treedepth = 12),
+    control = list(adapt_delta = 0.99, max_treedepth = 14),
     cores = parallel::detectCores()
   )
   
@@ -275,7 +275,7 @@ for(ic in incomes) {  # Loop over income levels for shannon_diversity
     ),
     chains = 2,
     iter = 5000,
-    control = list(adapt_delta = 0.99, max_treedepth = 12),
+    control = list(adapt_delta = 0.99, max_treedepth = 14),
     cores = parallel::detectCores()
   )
   
