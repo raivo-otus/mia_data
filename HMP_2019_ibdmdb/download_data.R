@@ -1,0 +1,36 @@
+
+dir <- "HMP_2019_ibdmdb"
+
+library(curatedMetagenomicData)
+library(ape)
+library(mia)
+
+# Load data from curatedMetagenomicData
+pattern <- "^2021-10-14\\.HMP_2019_ibdmdb\\.(pathway_abundance|relative_abundance)$"
+res <- curatedMetagenomicData(pattern = pattern, dryrun = FALSE, counts = TRUE, rownames = "short")
+
+# Save taxonomy data
+phylo <- res[[2]] |> rowTree()
+matches <- match(rowLinks(res[[2]])[[1L]], phylo$tip.label)
+phylo$tip.label[ matches ] <- rownames(res[[2]])
+phylo <- read.tree(file.path(dir, "phylogeny.tree"))
+rownames(res[[2]]) <- phylo$tip.label[ matches ]
+write.tree(phylo, file.path(dir, "phylogeny.tree"))
+tab <- res[[2]] |> rowData()
+write.csv(tab, file.path(dir, "taxonomy_table.csv"))
+tab <- res[[2]] |> colData()
+write.csv(tab, file.path(dir, "sample_metadata.csv"))
+tab <- res[[2]] |> assay()
+write.csv(tab, file.path(dir, "taxonomy_abundance.csv"))
+
+# Save pathway data
+tab <- res[[1]] |> rowData()
+tab[["taxonomy"]] <- rownames(res[[1]])
+tab <- mia:::.parse_taxonomy(
+    tab, column_name = "taxonomy", sep = "\\.")
+tab[["pathway"]] <- sub("\\|.*$", "", rownames(res[[1]]))
+rownames(tab) <- rownames(res[[1]])
+rowData(res[[1]]) <- tab
+res[[1]] <- agglomerateByVariable(res[[1]], by = 1L, group = "pathway")
+tab <- res[[1]] |> assay()
+write.csv(tab, file.path(dir, "pathway_abundance.csv"))
