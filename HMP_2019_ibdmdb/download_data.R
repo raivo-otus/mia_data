@@ -32,5 +32,6 @@ tab[["pathway"]] <- sub("\\|.*$", "", rownames(res[[1]]))
 rownames(tab) <- rownames(res[[1]])
 rowData(res[[1]]) <- tab
 res[[1]] <- agglomerateByVariable(res[[1]], by = 1L, group = "pathway")
+res[[1]] <- res[[1]][!grepl("UNINTEGRATED|UNMAPPED", rownames(res[[1]]), ignore.case = TRUE), ]
 tab <- res[[1]] |> assay()
 write.csv(tab, file.path(dir, "pathway_abundance.csv"))
