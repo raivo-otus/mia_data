@@ -13,6 +13,7 @@ res <- curatedMetagenomicData(pattern = pattern, dryrun = FALSE, counts = TRUE, 
 phylo <- res[[2]] |> rowTree()
 matches <- match(rowLinks(res[[2]])[[1L]], phylo$tip.label)
 phylo$tip.label[ matches ] <- rownames(res[[2]])
+write.tree(phylo, file.path(dir, "phylogeny.tree"))
 phylo <- read.tree(file.path(dir, "phylogeny.tree"))
 rownames(res[[2]]) <- phylo$tip.label[ matches ]
 write.tree(phylo, file.path(dir, "phylogeny.tree"))
