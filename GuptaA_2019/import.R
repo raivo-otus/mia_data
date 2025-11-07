@@ -1,5 +1,5 @@
 
-dir <- "HMP_2019_ibdmdb"
+dir <- "GuptaA_2019"
 
 library(mia)
 library(ape)
