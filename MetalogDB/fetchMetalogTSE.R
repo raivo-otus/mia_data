@@ -8,7 +8,8 @@
 # Libraries
 library(mia)
 library(data.table)
-library(httr2)
+library(dplyr)
+library(httr)
 
 # Source helpers
 sapply(
@@ -21,13 +22,11 @@ sapply(
 # -------------
 
 fetchMetalogTSE <- function(
-  collection,		# One of "human", "animal", "ocean_water", "other_environ"
+  collection,		# One of "human", "animal", "ocean", "other_environment"
   metadata = "core",	# One of "core", "partially_harmonized", "all"
   samplelist = NULL,
   use_cache = TRUE
 ) {
-
-  dir.create(".data_cache", recursive = TRUE)
 
   # Validate inputs
   .validate_inputs(
@@ -37,7 +36,8 @@ fetchMetalogTSE <- function(
     use_cache = use_cache
   )
 
-  # Consruct download URLs, download and cache
+  # Construct download URLs, download and cache
+  data_files <- .resolve_metalog_url(collection, metadata, use_cache)
 
   # Data ingest
 
