@@ -27,6 +27,8 @@ fetchMetalogTSE <- function(
   use_cache = TRUE
 ) {
 
+  dir.create(".data_cache", recursive = TRUE)
+
   # Validate inputs
   .validate_inputs(
     collection = collection,
@@ -34,7 +36,7 @@ fetchMetalogTSE <- function(
     samplelist = samplelist,
     use_cache = use_cache
   )
-  
+
   # Consruct download URLs, download and cache
 
   # Data ingest
