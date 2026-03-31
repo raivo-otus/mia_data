@@ -24,7 +24,7 @@ fetchMetalogTSE <- function(
   collection,		# One of "human", "animal", "ocean_water", "other_environ"
   metadata = "core",	# One of "core", "partially_harmonized", "all"
   samplelist = NULL,
-  cache = TRUE
+  use_cache = TRUE
 ) {
 
   # Validate inputs
@@ -32,7 +32,7 @@ fetchMetalogTSE <- function(
     collection = collection,
     metadata = metadata,
     samplelist = samplelist,
-    cache = cache
+    use_cache = use_cache
   )
   
   # Consruct download URLs, download and cache

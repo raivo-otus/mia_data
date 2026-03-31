@@ -2,6 +2,6 @@
 # If cache, checks if files already exist in datadir, and downloads if not. 
 # Otherwise downloads files to datadir.
 
-.resolve_metalog_url <- function(collection, metadata, cache) {
+.resolve_metalog_url <- function(collection, metadata, use_cache) {
 
 }
