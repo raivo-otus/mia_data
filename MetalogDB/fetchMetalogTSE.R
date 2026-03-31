@@ -26,7 +26,14 @@ fetchMetalogTSE <- function(
   samplelist = NULL,
   cache = TRUE
 ) {
+
   # Validate inputs
+  .validate_inputs(
+    collection = collection,
+    metadata = metadata,
+    samplelist = samplelist,
+    cache = cache
+  )
   
   # Consruct download URLs, download and cache
 
