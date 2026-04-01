@@ -77,7 +77,7 @@ library(mia)
   }
 
   # We make a simple GET request first just to see where "latest" redirects us
-  message("Fetching file from Metalog...")
+  message(paste0("Fetching file from Metalog...", target_url))
   response <- httr::GET(target_url, httr::config(followlocation = TRUE))
 
   if (httr::status_code(response) != 200) {
@@ -283,6 +283,7 @@ fetchMetalogTSE <- function(
 
   # Construct download URLs, download and cache
   data_files <- .resolve_metalog_url(collection, metadata, use_cache)
+  # Lastest database file for tax mapping
   mapping_db <- .download_if_missing(
     "https://metalog.embl.de/static/download/profiles/metaphlan4_clades.tsv.gz",
     use_cache = use_cache
@@ -298,7 +299,7 @@ fetchMetalogTSE <- function(
   }
   md_dt <- .load_metadata(data_files[["md"]], assay_list[["samples"]])
 
-  # Construct TSE with full lineage mappings
+  # Map SGB's to full lineage
   tax <- .construct_taxmap(mapping_db, assay_list[["taxa"]])
 
   tse <- TreeSummarizedExperiment(
