@@ -19,7 +19,7 @@ library(mia)
 
 # Function to check that inputs to fetchMetalogTSE
 .validate_inputs <- function(collection, metadata, samplelist, use_cache) {
-  allowed_collections <- c("human", "animal", "ocean_water", "other_environmental")
+  allowed_collections <- c("human", "animal", "ocean", "environmental")
   if (missing(collection) || !collection %in% allowed_collections) {
     stop(
       "Validation Error: 'collection' must be one of: ",
@@ -27,7 +27,7 @@ library(mia)
     )
   }
 
-  allowed_metadata <- c("core", "partially_harmonized", "all")
+  allowed_metadata <- c("core", "extended", "all")
   if (!metadata %in% allowed_metadata) {
     stop(
       "Validation Error: 'metadata' must be one of: ",
@@ -54,6 +54,7 @@ library(mia)
 }
 
 # Function to download datafiles, adapted from Metalog's example script
+# Function to download datafiles, adapted to handle broken HTTP redirects
 .download_if_missing <- function(
   target_url,
   download_dir = ".data_cache",
@@ -63,7 +64,6 @@ library(mia)
 
   # Caching Logic
   if (use_cache) {
-    # Replace "latest" with a date regex pattern (YYYY-MM-DD)
     pattern <- sub("latest", "[0-9]{4}-[0-9]{2}-[0-9]{2}", base_filename)
     matching_files <- list.files(download_dir, pattern = pattern, full.names = TRUE)
 
@@ -72,25 +72,53 @@ library(mia)
       message("Loaded cached file: ", latest_file)
       return(latest_file)
     }
+  }
+
+  if (!dir.exists(download_dir)) {
+    dir.create(download_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  message("Fetching file from: ", target_url)
+
+  ### Masquarade as a browser, in case of anti-scraping measures
+  ua <- httr::user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+  ### Metalog server downgrades protocol from https >> http, 
+  ### Since 1st of April 2026. This janky solution is needed to force https
+
+  # Catch the redirect
+  initial_req <- httr::GET(target_url, ua, httr::config(followlocation = FALSE))
+  
+  # Check if we got a redirect to HTTP
+  if (initial_req$status_code >= 300 && initial_req$status_code < 400) {
+    # Extract the redirected URL
+    final_url <- initial_req$headers$location
+    
+    # Force HTTPS protocol
+    final_url <- sub("^http://", "https://", final_url)
+    message("Intercepted redirect. Forcing HTTPS: ", final_url)
+    
+  } else if (initial_req$status_code == 200) {
+    final_url <- target_url # No redirect occurred
   } else {
-    message("Skipping cache. Forcing download for: ", base_filename)
+    stop("Initial request failed with status: ", initial_req$status_code)
   }
 
-  # We make a simple GET request first just to see where "latest" redirects us
-  message(paste0("Fetching file from Metalog...", target_url))
-  response <- httr::GET(target_url, httr::config(followlocation = TRUE))
-
-  if (httr::status_code(response) != 200) {
-    stop("Error fetching the file! Status code: ", httr::status_code(response))
-  }
-
-  # Extract the final URL and save
-  url_with_date <- response$url
-  filename <- basename(url_with_date)
+  # Download the actual file from the corrected URL
+  filename <- basename(final_url)
   destfile <- file.path(download_dir, filename)
-
+  
   message("Downloading to: ", destfile)
-  httr::GET(url_with_date, httr::write_disk(destfile, overwrite = TRUE))
+  final_req <- httr::GET(
+    final_url, 
+    ua,
+    httr::write_disk(destfile, overwrite = TRUE)
+  )
+
+  if (httr::status_code(final_req) != 200) {
+    if (file.exists(destfile)) file.remove(destfile)
+    stop("Error downloading the file! Status code: ", httr::status_code(final_req))
+  }
 
   return(destfile)
 }
@@ -106,20 +134,11 @@ library(mia)
 
   # Construct download URL's into target list
   base_url <- "https://metalog.embl.de/static/download"
-
-  profile <- dplyr::case_when(
-    collection == "human" ~ "human",
-    collection == "animal" ~ "animal",
-    collection == "ocean" ~ "ocean",
-    collection == "other_environment" ~ "environmental"
-  )
+  
+  profile <- collection
   assay_url <- sprintf("%s/profiles/%s_metaphlan4_latest.tsv.gz", base_url, profile)
 
-  md_type <- dplyr::case_when(
-    metadata == "core" ~ "core",
-    metadata == "partially_harmonized" ~ "extended",
-    metadata == "all" ~ "all"
-  )
+  md_type <- metadata
   md_url <- sprintf("%s/metadata/%s_%s_long_latest.tsv.gz", base_url, profile, md_type)
 
   # Get files
