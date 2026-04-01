@@ -11,7 +11,6 @@ library(TreeSummarizedExperiment)
 library(data.table)
 library(dplyr)
 library(httr)
-library(mia)
 
 # -------------
 # Helpers FUNs
